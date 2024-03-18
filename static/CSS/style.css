@@ -1,0 +1,65 @@
+body {
+    font-family: 'Lato';
+    color: #333333;
+  }
+/* If the screen size is 601px or more, set the font-size of <div> to 80px */
+@media only screen and (min-width: 721px) {
+
+    body { 
+        font-size: 100%; 
+    }
+ 
+}
+
+ @media screen and (min-width:601px) and (max-width:720px){
+    body { 
+        font-size: 80%; 
+    }
+}
+
+/* If the screen size is 600px or less, set the font-size of <div> to 30px */
+@media only screen and (max-width: 600px) {
+
+    body { 
+        font-size: 60%; 
+    }
+    .table-wrapper {
+        overflow-x:auto;
+    }
+ 
+}
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+}
+
+thead {
+    background-color:  #f2f2f2;
+}
+  
+tr {
+    border-bottom: 1pt solid black;
+}
+
+th, td {
+    text-align: center;
+    padding: 12px;
+  }
+
+h4 span {
+    padding: 12px;
+    background-color: #f2f2f2
+}
+
+tbody tr:first-child {
+    background-color: yellow;
+}
+
+a {
+    text-decoration: none; /* Remove underline */
+    color: inherit; /* Inherit the color from parent */
+    cursor: pointer; /* Change cursor to pointer */
+    /* Optionally, you can set other properties like font-weight, etc. */
+}

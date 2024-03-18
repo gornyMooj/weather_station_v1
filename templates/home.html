@@ -1,0 +1,251 @@
+{# home.html #}
+
+{% extends 'index.html' %}
+
+{% block content %}
+
+<div class="container">
+    <h4><span>FEEDS</span></h4>
+    <input type="number" id="numberInput"> <!-- Input box with default value 72 -->
+    <button type="button" onclick="fetchData();">FETCH DATA</button>
+</div>
+
+<div class="container">
+  <p id="datetime"></p>
+</div>
+<br>
+
+<div id="plot_temp"></div>
+
+<div id="wind_speed"></div>
+
+<div id="plot_humiditi"></div>
+
+
+
+<br>
+<div class="container">
+  <h4><span>FEEDS DATA</span></h4>
+  {% if feeds %}
+    <div class="table-wrapper">
+      <table class="table">
+          <thead>
+              <tr>
+                  <th>Created At</th>
+                  <th>HOME TEMPERTAURE <br> [°C] <span id="id_field1"></span></th>
+                  <th>HOME HUMIDITY <br> [%]<span id="id_field2"></span></th>
+                  <th>OUTIDE TEMPERATURE <br> [°C]<span id="id_field3"></span></th>
+                  <th>OUTSIDE HUMIDITY <br> [%]<span id="id_field4"></span></th>
+                  <th>WIND SPEEP<br> [km/h]<span id="id_field5"></span></th>
+              </tr>
+          </thead>
+          <tbody>
+              {% for feed in feeds %}
+                  <tr>
+                      <td>{{ feed.created_at }}</td>
+                      <td>{{ feed.field1 }}</td>
+                      <td>{{ feed.field2 }}</td>
+                      <td>{{ feed.field3 }}</td>
+                      <td>{{ feed.field4 }}</td>
+                      <td>{{ feed.field5 }}</td>
+                  </tr>
+              {% endfor %}
+          </tbody>
+      </table>
+  {% else %}
+      <p>No feeds data available.</p>
+  {% endif %}
+  </div>
+</div>
+
+
+    
+    
+<script>
+
+   // Function to extract the number from the URL
+   function extractNumberFromURL() {
+            var url = window.location.href;
+            var number = 0; // Default value
+
+            var match = url.match(/\/fetch_data\/(\d+)/);
+            if (match && match[1]) {
+                number = parseInt(match[1]);
+            }
+
+            return number;
+        };
+
+        // Function to set the value of the input field based on the URL
+    function setInitialInputValue() {
+        var numberInput = document.getElementById("numberInput");
+        var initialValue = extractNumberFromURL();
+        numberInput.value = initialValue;
+    };
+
+        // Call the function to set the initial value of the input field
+    setInitialInputValue();
+
+        
+    function fetchData() {
+        var numberInput = document.getElementById("numberInput");
+        var number = parseInt(numberInput.value);
+        
+        if (isNaN(number) || number === 0) {
+            alert("Buddy, specify the number of channels you want to fetch.\n\nKolego, określ liczbę godzin, które chcesz pobrać.");
+            return; // Prevent further execution
+        }
+        // Proceed with fetching data
+        var url = "/fetch_data/" + number;
+        window.location.href = url;
+    };
+
+    function updateDateTime() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' };
+      const formattedDateTime = now.toLocaleDateString('en-US', options);
+      document.getElementById('datetime').innerHTML = formattedDateTime;
+      
+    }
+
+    // Update time initially and then every second
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    // this is how you can fetch data from FLASK; the data is used used in JINJA as well
+    var feeds = {{ feeds | tojson }};
+        console.log('Feeds:', feeds);
+
+    
+    function addTrend(field) {
+      var element = document.getElementById("id_"+ field);
+      if (feeds[0][field] > feeds[1][field]) {
+          element.innerHTML = " &#x2B5C;";
+          element.style.color = "green";
+          element.style.fontWeight = "900";
+        } else if (feeds[0][field] === feeds[1][field]) {
+          element.innerHTML = " &#x23F8;"; 
+        } else if (feeds[0][field] < feeds[1][field]) {
+          element.innerHTML = " &#x2B5D;";
+          element.style.color = "red";
+          element.style.fontWeight = "900";
+        } else {
+          element.innerHTML = " &#x1F6AB;"; 
+        }
+        
+    };
+    if (feeds.length > 0){     
+      var fields = ['field1', 'field2', 'field3', 'field4', 'field5'];
+
+      for (f of fields) {
+        addTrend(f);
+      };
+
+      // PLOTING CODE
+      var home = '#bf00ff',
+          out = '#ffbf00',
+          height = 300;
+      function parseTime(created_at) {
+        // coverts string to Datetime object
+        const [date, time] = created_at.split(" ");
+        const [year, month, day] = date.split("-");
+        const [hour, minute] = time.split(":");
+        return new Date(year, month - 1, day, hour, minute);
+      };
+
+      feeds.forEach(obj => {
+        // Rename the key 'field1' to 'Temperature Home'
+        obj['Temperature Home'] = parseFloat(obj['field1']); 
+        delete obj['field1'];
+        obj['Home Humiditi'] = parseFloat(obj['field2']); 
+        delete obj['field2'];
+        obj['Outside Temperature'] = parseFloat(obj['field3']); 
+        delete obj['field3'];
+        obj['Outside Humidity'] = parseFloat(obj['field4']);
+        delete obj['field4'];
+        obj['Wind Speed'] = parseFloat(obj['field5']);
+        delete obj['field5'];
+        obj['Date'] = parseTime(obj['created_at']);
+        delete obj['created_at'];
+      });
+
+      var plot_temp = Plot.plot({
+        //title: "For charts, an informative title",
+        subtitle: "Temeperatures [°C]",
+        grid: true,
+        marginTop: 20,
+        marginRight: 50,
+        marginBottom: 30,
+        marginLeft: 40,
+        height:height,
+        width: window.screen.width,
+        marks: [
+          Plot.lineY(feeds, {x: "Date", y: "Temperature Home", stroke: home, marker: true, tip: "xy"}),
+          Plot.crosshairX(feeds, {x: "Date", y: "Temperature Home"}),
+          Plot.lineY(feeds, {x: "Date", y: "Outside Temperature", stroke: out, marker: true, tip: "xy"}),
+          Plot.crosshairX(feeds, {x: "Date", y: "Outside Temperature"}),
+          Plot.text(feeds, Plot.selectFirst({x: "Date", y: "Temperature Home", text: ["HOME"], dy:16, dx:4, fontWeight:"bold", lineAnchor: "bottom", textAnchor: "start"})),
+          Plot.text(feeds, Plot.selectFirst({x: "Date", y: "Outside Temperature", text: ["OUTSIDE"], dy:16, dx:4,fontWeight:"bold", lineAnchor: "bottom", textAnchor: "start"}))
+          
+        ]
+      });
+      var div = document.querySelector("#plot_temp");
+      div.append(plot_temp);
+
+      var wind_speed = Plot.plot({
+        //title: "For charts, an informative title",
+        subtitle: "Wind Speed [km/h]",
+        grid: true,
+        marginTop: 20,
+        marginRight: 50,
+        marginBottom: 30,
+        marginLeft: 40,
+        height:height,
+        width: window.screen.width,
+        marks: [
+          Plot.lineY(feeds, {x: "Date", y: "Wind Speed", stroke: '#0080ff', marker: true, tip: "xy"}),	
+          Plot.crosshairX(feeds, {x: "Date", y: "Wind Speed"}),
+          Plot.text(feeds, Plot.selectFirst({x: "Date", y: "Wind Speed", text: ["WIND"], dy:16, dx:4,fontWeight:"bold", lineAnchor: "bottom", textAnchor: "start"}))	
+        ]
+      });
+      var div = document.querySelector("#wind_speed");
+      div.append(wind_speed);
+
+      var plot_humiditi = Plot.plot({
+        //title: "For charts, an informative title",
+        subtitle: "Humidity [%]",
+        grid: true,
+        marginTop: 20,
+        marginRight: 50,
+        marginBottom: 30,
+        marginLeft: 40,
+        height:height,
+        width: window.screen.width,
+        marks: [
+          Plot.lineY(feeds, {x: "Date", y: "Home Humiditi", stroke: home, marker: true, tip: "xy"}),
+          Plot.crosshairX(feeds, {x: "Date", y: "Home Humiditi"}),
+          Plot.lineY(feeds, {x: "Date", y: "Outside Humidity", stroke: out, marker: true, tip: "xy"}),
+          Plot.crosshairX(feeds, {x: "Date", y: "Outside Humidity"}),
+          Plot.text(feeds, Plot.selectFirst({x: "Date", y: "Home Humiditi", text: ["HOME"], dy:16, dx:4, fontWeight:"bold", lineAnchor: "bottom", textAnchor: "start"})),
+          Plot.text(feeds, Plot.selectFirst({x: "Date", y: "Outside Humidity", text: ["OUTSIDE"], dy:16, dx:4,fontWeight:"bold", lineAnchor: "bottom", textAnchor: "start"}))
+          
+        ]
+      });
+      var div = document.querySelector("#plot_humiditi");
+      div.append(plot_humiditi);
+
+
+    };
+
+    
+
+        
+
+
+
+
+  </script>
+
+{% endblock content %}
+
+
